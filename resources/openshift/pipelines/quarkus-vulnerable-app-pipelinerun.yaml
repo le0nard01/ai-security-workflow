@@ -14,9 +14,9 @@ spec:
     - name: destination-image
       value: image-registry.openshift-image-registry.svc:5000/$(context.pipelineRun.namespace)/quarkus-vuln-demo:latest
     - name: hardened-runtime-image
-      value: registry.access.redhat.com/hi/openjdk:latest
-    - name: hardened-builder-image
-      value: registry.access.redhat.com/hi/openjdk:latest-builder
+      value: registry.access.redhat.com/hi/openjdk:latest-runtime
+    - name: builder-image
+      value: registry.access.redhat.com/ubi9/openjdk-17:latest
   workspaces:
     - name: source
       volumeClaimTemplate:
