@@ -1,0 +1,28 @@
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  generateName: quarkus-vulnerable-app-build-
+spec:
+  serviceAccountName: pipeline
+  pipelineRef:
+    name: quarkus-vulnerable-app-build
+  params:
+    - name: git-url
+      value: https://github.com/CHANGE-ME/ai-security-workflow.git
+    - name: git-revision
+      value: main
+    - name: destination-image
+      value: image-registry.openshift-image-registry.svc:5000/$(context.pipelineRun.namespace)/quarkus-vuln-demo:latest
+    - name: hardened-runtime-image
+      value: registry.access.redhat.com/hi/openjdk:latest
+    - name: hardened-builder-image
+      value: registry.access.redhat.com/hi/openjdk:latest-builder
+  workspaces:
+    - name: source
+      volumeClaimTemplate:
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 2Gi
