@@ -38,12 +38,12 @@ spec:
       description: Image pushed into the OpenShift local registry.
     - name: hardened-runtime-image
       type: string
-      default: registry.access.redhat.com/hi/openjdk:latest
+      default: registry.access.redhat.com/hi/openjdk:latest-runtime
       description: Red Hat Hardened Image used as the runtime base.
-    - name: hardened-builder-image
+    - name: builder-image
       type: string
-      default: registry.access.redhat.com/hi/openjdk:latest-builder
-      description: Red Hat Hardened Image used as the build base.
+      default: registry.access.redhat.com/ubi9/openjdk-17:latest
+      description: Red Hat OpenJDK builder image used to compile the application.
   workspaces:
     - name: source
   tasks:
@@ -89,7 +89,7 @@ spec:
         - name: TLSVERIFY
           value: "false"
         - name: BUILD_EXTRA_ARGS
-          value: "--pull=true --build-arg BUILDER_IMAGE=$(params.hardened-builder-image) --build-arg RUNTIME_IMAGE=$(params.hardened-runtime-image)"
+          value: "--pull=true --build-arg BUILDER_IMAGE=$(params.builder-image) --build-arg RUNTIME_IMAGE=$(params.hardened-runtime-image)"
       workspaces:
         - name: source
           workspace: source

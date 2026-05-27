@@ -10,8 +10,8 @@ This repository contains:
 The sample app uses a multi-stage `Containerfile`:
 
 ```text
-Build:   registry.access.redhat.com/hi/openjdk:latest-builder
-Runtime: registry.access.redhat.com/hi/openjdk:latest
+Build:   registry.access.redhat.com/ubi9/openjdk-17:latest
+Runtime: registry.access.redhat.com/hi/openjdk:latest-runtime
 ```
 
 The pipeline pushes by default to:

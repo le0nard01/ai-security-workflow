@@ -1,11 +1,7 @@
-ARG BUILDER_IMAGE=registry.access.redhat.com/hi/openjdk:latest-builder
+ARG BUILDER_IMAGE=registry.access.redhat.com/ubi9/openjdk-17:latest
 ARG RUNTIME_IMAGE=registry.access.redhat.com/hi/openjdk:latest-runtime
 
 FROM ${BUILDER_IMAGE} AS build
-
-USER root
-RUN dnf install -y maven && dnf clean all
-USER ${CONTAINER_DEFAULT_USER}
 
 WORKDIR /workspace
 
