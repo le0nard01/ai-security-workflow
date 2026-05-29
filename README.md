@@ -39,3 +39,17 @@ If your cluster requires registry credentials for Red Hat images, attach your Re
 ```sh
 oc secrets link pipeline redhat-pull-secret --for=pull
 ```
+
+Create a RHACS token secret before running the pipeline:
+
+```sh
+oc create secret generic rox-api-token --from-literal=token='<RHACS_API_TOKEN>'
+```
+
+Set `rox-central-endpoint` in the `PipelineRun` to your RHACS Central endpoint. The pipeline runs:
+
+```sh
+roxctl image check -c Custom --image <built-image>
+```
+
+If the RHACS policy check fails, `roxctl` exits non-zero and the pipeline fails.

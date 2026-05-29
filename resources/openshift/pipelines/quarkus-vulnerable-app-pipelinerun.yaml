@@ -8,7 +8,7 @@ spec:
     name: quarkus-vulnerable-app-build
   params:
     - name: git-url
-      value: https://github.com/CHANGE-ME/ai-security-workflow.git
+      value: https://github.com/le0nard01/ai-security-workflow.git
     - name: git-revision
       value: main
     - name: destination-image
@@ -17,6 +17,15 @@ spec:
       value: registry.access.redhat.com/hi/openjdk:latest-runtime
     - name: builder-image
       value: registry.access.redhat.com/ubi9/openjdk-17:latest
+    - name: rox-central-endpoint
+      value: central.rhacs-operator.svc.cluster.local:443
+    - name: rox-api-token-secret
+      value: rox-api-token
+    - name: rox-insecure-skip-tls-verify
+      value: true
+    - name: roxctl-image
+      value: registry.redhat.io/advanced-cluster-security/rhacs-roxctl-rhel8:4.10
+
   workspaces:
     - name: source
       volumeClaimTemplate:

@@ -44,6 +44,21 @@ spec:
       type: string
       default: registry.access.redhat.com/ubi9/openjdk-17:latest
       description: Red Hat OpenJDK builder image used to compile the application.
+    - name: rox-central-endpoint
+      type: string
+      description: RHACS Central endpoint, for example central-stackrox.apps.example.com:443.
+    - name: rox-api-token-secret
+      type: string
+      default: rox-api-token
+      description: Secret containing the RHACS API token in the token key.
+    - name: rox-insecure-skip-tls-verify
+      type: string
+      default: "false"
+      description: Set to true when RHACS Central uses a certificate not trusted by the roxctl image.
+    - name: roxctl-image
+      type: string
+      default: registry.redhat.io/advanced-cluster-security/rhacs-roxctl-rhel8:latest
+      description: Image containing the roxctl CLI.
   workspaces:
     - name: source
   tasks:
@@ -58,7 +73,7 @@ spec:
           - name: namespace
             value: openshift-pipelines
       params:
-        - name: url
+        - name: URL
           value: $(params.git-url)
         - name: revision
           value: $(params.git-revision)
@@ -93,3 +108,53 @@ spec:
       workspaces:
         - name: source
           workspace: source
+    - name: roxctl-image-check
+      runAfter:
+        - build-and-push
+      taskSpec:
+        params:
+          - name: image
+            type: string
+          - name: rox-central-endpoint
+            type: string
+          - name: rox-api-token-secret
+            type: string
+          - name: rox-insecure-skip-tls-verify
+            type: string
+          - name: roxctl-image
+            type: string
+        steps:
+          - name: image-check
+            image: $(params.roxctl-image)
+            env:
+              - name: ROX_API_TOKEN
+                valueFrom:
+                  secretKeyRef:
+                    name: $(params.rox-api-token-secret)
+                    key: token
+            script: |
+              #!/usr/bin/env sh
+              set -eu
+
+              tls_args=""
+              if [ "$(params.rox-insecure-skip-tls-verify)" = "true" ]; then
+                tls_args="--insecure-skip-tls-verify"
+              fi
+
+              roxctl image check \
+                --endpoint "$(params.rox-central-endpoint)" \
+                ${tls_args} \
+                -c Custom \
+                --image "$(params.image)" \
+                --cluster local-cluster
+      params:
+        - name: image
+          value: $(params.destination-image)
+        - name: rox-central-endpoint
+          value: $(params.rox-central-endpoint)
+        - name: rox-api-token-secret
+          value: $(params.rox-api-token-secret)
+        - name: rox-insecure-skip-tls-verify
+          value: $(params.rox-insecure-skip-tls-verify)
+        - name: roxctl-image
+          value: $(params.roxctl-image)
