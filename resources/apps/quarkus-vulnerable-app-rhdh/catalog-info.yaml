@@ -1,4 +1,3 @@
-# catalog-info.yaml
 apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
@@ -13,3 +12,4 @@ spec:
   lifecycle: development
 #  dependsOn:
 #    - example-component # Reference to a component if needed
+# catalog-info.yaml
