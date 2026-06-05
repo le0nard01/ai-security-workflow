@@ -1,0 +1,13 @@
+# catalog-info.yaml
+metadata:
+  name: quarkus-vulnerable-app
+  description: "My quarkus application with some vulnerabilities"
+  tags:
+    - quarkus
+    - system
+spec:
+  type: system
+  owner: user:default/admin
+  lifecycle: development
+#  dependsOn:
+#    - example-component # Reference to a component if needed
