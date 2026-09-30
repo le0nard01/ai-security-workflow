@@ -6,7 +6,8 @@ archive=$(mktemp /tmp/images-security-source.XXXXXX.tgz)
 trap 'rm -f "$archive"' EXIT
 
 tar -C "$repo_root" --exclude='images-security/app/target' -czf "$archive" \
-  images-security/app images-security/containers
+  images-security/app images-security/containers \
+  images-security/openshift/rhhi-deployment.yaml
 oc -n images-security create configmap images-security-source \
   --from-file="source.tgz=${archive}" --dry-run=client -o yaml | oc apply -f -
 echo 'Snapshot da aplicação e dos Containerfiles publicado no cluster.'

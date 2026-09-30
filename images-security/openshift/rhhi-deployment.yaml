@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: security-demo-rhhi
+  namespace: images-security
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: security-demo-rhhi
+  template:
+    metadata:
+      labels:
+        app: security-demo-rhhi
+    spec:
+      containers:
+        - name: app
+          image: IMAGE_REFERENCE
+          ports:
+            - containerPort: 8080
+              name: http
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          readinessProbe:
+            httpGet:
+              path: /vulnerabilities
+              port: http
+            periodSeconds: 5
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: security-demo-rhhi
+  namespace: images-security
+spec:
+  selector:
+    app: security-demo-rhhi
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: security-demo-rhhi
+  namespace: images-security
+spec:
+  to:
+    kind: Service
+    name: security-demo-rhhi
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

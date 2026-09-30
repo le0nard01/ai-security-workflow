@@ -23,6 +23,36 @@ subjects:
     name: pipeline
     namespace: images-security
 ---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: pipeline-rhhi-deployer
+  namespace: images-security
+rules:
+  - apiGroups: [apps]
+    resources: [deployments]
+    verbs: [create, get, patch, update, watch]
+  - apiGroups: [""]
+    resources: [services]
+    verbs: [create, get, patch, update]
+  - apiGroups: [route.openshift.io]
+    resources: [routes]
+    verbs: [create, get, patch, update]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: pipeline-rhhi-deployer
+  namespace: images-security
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: pipeline-rhhi-deployer
+subjects:
+  - kind: ServiceAccount
+    name: pipeline
+    namespace: images-security
+---
 apiVersion: tekton.dev/v1
 kind: Pipeline
 metadata:
@@ -184,3 +214,47 @@ spec:
               roxctl image check --endpoint "$(params.endpoint)" \
                 --cluster "$(params.cluster)" --namespace "$(context.taskRun.namespace)" \
                 --image "$(params.image)" --force -o table $tls
+    - name: deploy-rhhi
+      runAfter: [image-check]
+      when:
+        - input: $(params.variant)
+          operator: in
+          values: [rhhi]
+      params:
+        - name: image
+          value: $(params.image)
+        - name: digest
+          value: $(tasks.build.results.IMAGE_DIGEST)
+      taskSpec:
+        params:
+          - name: image
+            type: string
+          - name: digest
+            type: string
+        workspaces:
+          - name: source
+        steps:
+          - name: deploy
+            image: quay.io/openshift/origin-cli:4.22
+            script: |
+              #!/usr/bin/env sh
+              set -eu
+              image_ref="$(params.image)@$(params.digest)"
+              manifest="$(workspaces.source.path)/images-security/openshift/rhhi-deployment.yaml"
+              sed "s|IMAGE_REFERENCE|${image_ref}|g" "$manifest" | oc apply -f -
+              oc -n "$(context.taskRun.namespace)" rollout status \
+                deployment/security-demo-rhhi --timeout=180s
+              oc -n "$(context.taskRun.namespace)" get route security-demo-rhhi \
+                -o jsonpath='https://{.spec.host}/vulnerabilities{"\n"}'
+          - name: smoke-test
+            image: registry.access.redhat.com/ubi9/openjdk-17:latest
+            script: |
+              #!/usr/bin/env sh
+              set -eu
+              url="http://security-demo-rhhi.$(context.taskRun.namespace).svc.cluster.local:8080/vulnerabilities"
+              body=$(curl --fail --silent --show-error "$url")
+              echo "$body" | grep -q '"app":"images-security-demo"'
+              echo "Smoke test aprovado: $body"
+      workspaces:
+        - name: source
+          workspace: source
