@@ -5,6 +5,7 @@ components:
   - name: tools
     container:
       image: registry.access.redhat.com/ubi9/openjdk-17:latest
+      command: ["tail", "-f", "/dev/null"]
       memoryLimit: 3Gi
       mountSources: true
 commands:
