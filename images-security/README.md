@@ -23,6 +23,8 @@ sync-source.sh → ConfigMap com snapshot do app e Containerfiles
 OpenShift Pipeline: fetch → Buildah → roxctl image scan → roxctl image check
                                              │                    │
                                       inventário/CVEs       políticas FAIL_BUILD
+                                                                  │
+                                                                  └→ RHHI aprovada: deploy → rollout → HTTP
 ```
 
 O pipeline produz quatro imagens da **mesma aplicação**:
@@ -66,13 +68,21 @@ oc -n images-security get pipelineruns -w
 
 Para ver scan e gate: `oc -n images-security logs <taskrun-pod> -c step-scan` e `oc -n images-security logs <taskrun-pod> -c step-policy-gate`, ou abra cada PipelineRun na console OpenShift. O nome de cada etapa aparece na visualização do pipeline. Para repetir somente uma variante, adapte a função `submit` em `run-demo.sh` ou execute a matriz novamente.
 
+Somente a variante `rhhi-none` que passa pelo Image Check executa `deploy-rhhi`. O CD aplica `rhhi-deployment.yaml` com o **digest do Buildah**, aguarda o Deployment ficar disponível e consulta `/vulnerabilities` pelo Service. A Route HTTPS é `security-demo-rhhi`; obtenha o endereço no terminal do Dev Spaces:
+
+```bash
+oc -n images-security get route security-demo-rhhi -o jsonpath='https://{.spec.host}/vulnerabilities{"\n"}'
+oc -n images-security get deployment security-demo-rhhi
+```
+
 ## Roteiro de apresentação (15–20 minutos)
 
 1. **IDE e análise de dependências.** Abra `https://devspaces.apps.cluster-fhchw.dyn.redhatworkshops.io#https://github.com/le0nard01/ai-security-workflow.git?devfilePath=images-security/devfile.yaml` quando esta pasta estiver publicada no Git. No IDE, abra `images-security/rhda-unsafe/pom.xml` e clique em **Open Red Hat Dependency Analytics Report**: Log4j 2.14.1 e Commons Collections 3.2.1 aparecem com vulnerabilidades e remediações. Compare com `images-security/app/pom.xml`, cujo perfil padrão não inclui essas bibliotecas. Execute os comandos `show-dependencies`, `build-unsafe` e `build-safe` do devfile. O relatório do RHDA analisa dependências de aplicação; não substitui o scan de imagem do ACS.
 2. **Pipeline e Image Scan.** Execute os scripts de preparação acima. Mostre `fetch`, `build` e `image-scan` nos quatro PipelineRuns. O `roxctl image scan` mostra pacotes e CVEs encontrados pelo ACS; use os números reais do momento, pois feeds e tags mudam.
 3. **Image Check com bloqueio.** Abra a Task `image-check`. As políticas em `acs-policies.yaml` têm ciclo **BUILD** e ação **FAIL_BUILD**: `Log4Shell` procura CVE-2021-44228; `Gerenciador no runtime` procura `rpm` ou `dpkg`. Compare os PipelineRuns aprovados e reprovados. O resultado exato depende do inventário publicado pelo Scanner V4 e dos feeds atuais. Políticas padrão do ACS também podem bloquear um build se aparecerem novos CVEs corrigíveis.
-4. **Redução da superfície de ataque.** Compare `community-none`, `ubi-none` e `rhhi-none`: aplicação e dependências iguais, somente runtime diferente. No ACS, abra o inventário/SBOM de cada tag e anote **número de componentes do SO**, **CVEs do SO**, **tamanho** e presença de gerenciador de pacotes. A RHHI foi desenhada para remover utilitários de runtime desnecessários; uma quantidade menor de pacotes reduz pontos potencialmente exploráveis, mas não garante zero CVEs. Compare também os CVEs da aplicação separadamente dos do sistema operacional.
-5. **Remediação.** Mostre que a versão sem o perfil `unsafe` elimina a dependência Log4j antiga. Refaça o `sync-source.sh` e o pipeline após qualquer correção no `pom.xml`; o gate aplica as políticas novamente.
+4. **CD da RHHI.** Abra a Task `deploy-rhhi` no PipelineRun aprovado. Mostre o digest fixado no Deployment, o rollout concluído, o smoke test HTTP e a Route HTTPS. Os três PipelineRuns bloqueados não fazem deploy.
+5. **Redução da superfície de ataque.** Compare `community-none`, `ubi-none` e `rhhi-none`: aplicação e dependências iguais, somente runtime diferente. No ACS, abra o inventário/SBOM de cada tag e anote **número de componentes do SO**, **CVEs do SO**, **tamanho** e presença de gerenciador de pacotes. A RHHI foi desenhada para remover utilitários de runtime desnecessários; uma quantidade menor de pacotes reduz pontos potencialmente exploráveis, mas não garante zero CVEs. Compare também os CVEs da aplicação separadamente dos do sistema operacional.
+6. **Remediação.** Mostre que a versão sem o perfil `unsafe` elimina a dependência Log4j antiga. Refaça o `sync-source.sh` e o pipeline após qualquer correção no `pom.xml`; o gate aplica as políticas novamente.
 
 ### Medição neste cluster (30/09/2026)
 
@@ -93,7 +103,7 @@ Use os digests dos builds executados e registre novamente a data ao repetir a de
 - `rhda-unsafe/`: manifesto Maven com dependências vulneráveis explícitas para o relatório RHDA.
 - `containers/`: três Containerfiles com builder comum e runtimes distintos.
 - `devfile.yaml` e `.vscode/extensions.json`: ambiente Dev Spaces e RHDA.
-- `openshift/`: Pipeline, políticas ACS e instalação do Dev Spaces.
+- `openshift/`: Pipeline, políticas ACS, Deployment/Service/Route RHHI e instalação do Dev Spaces.
 - `scripts/`: token de integração, sincronização do código e quatro PipelineRuns.
 
 ## Referências oficiais
