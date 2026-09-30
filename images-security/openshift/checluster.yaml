@@ -7,3 +7,5 @@ spec:
   components:
     pluginRegistry:
       openVSXURL: https://open-vsx.org
+  devEnvironments:
+    startTimeoutSeconds: 600
