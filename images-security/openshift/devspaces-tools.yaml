@@ -1,0 +1,23 @@
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: images-security-devtools
+  namespace: admin-devspaces
+---
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: images-security-devtools
+  namespace: admin-devspaces
+spec:
+  source:
+    type: Binary
+    binary: {}
+  strategy:
+    type: Docker
+    dockerStrategy:
+      dockerfilePath: Containerfile.devspaces
+  output:
+    to:
+      kind: ImageStreamTag
+      name: images-security-devtools:latest

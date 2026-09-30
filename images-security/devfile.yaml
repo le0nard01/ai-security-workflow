@@ -4,7 +4,7 @@ metadata:
 components:
   - name: tools
     container:
-      image: registry.access.redhat.com/ubi9/openjdk-17:latest
+      image: image-registry.openshift-image-registry.svc:5000/admin-devspaces/images-security-devtools:latest
       command: ["tail", "-f", "/dev/null"]
       memoryLimit: 3Gi
       mountSources: true

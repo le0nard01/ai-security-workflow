@@ -1,0 +1,8 @@
+FROM quay.io/openshift/origin-cli:4.22 AS cli
+
+FROM registry.access.redhat.com/ubi9/openjdk-17:latest
+USER 0
+RUN microdnf install -y git gzip && microdnf clean all
+COPY --from=cli /usr/bin/oc /usr/local/bin/oc
+USER 185
+CMD ["tail", "-f", "/dev/null"]

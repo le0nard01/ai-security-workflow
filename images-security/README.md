@@ -8,6 +8,7 @@ Esta demo une OpenShift Dev Spaces, Red Hat Dependency Analytics (RHDA), OpenShi
 - ACS 4.11.4: Central e Secured Cluster instalados; nome do cluster no ACS: `my-cluster`.
 - Pipelines 1.24: pipeline `images-security` criado no namespace da demo.
 - Dev Spaces 3.30.2: `https://devspaces.apps.cluster-fhchw.dyn.redhatworkshops.io`.
+- O devfile usa a imagem `admin-devspaces/images-security-devtools`, construída a partir de UBI com Maven, Git, gzip e OpenShift CLI. Recrie-a com `bash images-security/scripts/build-devspaces-tools.sh` antes de abrir um workspace novo neste cluster.
 - RHDA: extensão `redhat.fabric8-analytics`, disponível no Open VSX. O Dev Spaces foi apontado para `https://open-vsx.org`; abra a pasta `images-security` no editor para aplicar as recomendações de `.vscode/extensions.json`. Se a instalação automática não ocorrer, instale a extensão pela aba Extensions.
 
 ## Como funciona
@@ -46,6 +47,7 @@ oc apply -f images-security/openshift/devspaces.yaml
 # Depois que o operador Dev Spaces estiver Succeeded:
 oc apply -f images-security/openshift/checluster.yaml
 bash images-security/scripts/configure-acs-token.sh
+bash images-security/scripts/build-devspaces-tools.sh
 ```
 
 O script do token usa a senha local de administração do ACS e cria um token com papel **Continuous Integration**, armazenado apenas no Secret `images-security/rox-api-token`. Não grava o token no Git. Em ambientes sem o Secret `central-htpasswd`, crie um token Continuous Integration no portal ACS e salve-o com `oc -n images-security create secret generic rox-api-token --from-literal=token='<TOKEN>'`.
