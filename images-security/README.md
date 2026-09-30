@@ -34,7 +34,7 @@ O pipeline produz quatro imagens da **mesma aplicação**:
 | `community-unsafe` | Perfil Maven `unsafe` com Log4j 2.14.1 e Commons Collections 3.2.1 | `eclipse-temurin:17-jre` | Má prática no código e runtime amplo; deve disparar a política Log4Shell. |
 | `community-none` | Perfil padrão | `eclipse-temurin:17-jre` | Isola a influência do runtime community após corrigir o código. |
 | `ubi-none` | Perfil padrão | `ubi9/openjdk-17-runtime` | Runtime Red Hat suportado, mais enxuto que o builder. |
-| `rhhi-none` | Perfil padrão | `hi/openjdk:latest` | Runtime Hardened com inventário reduzido de pacotes de sistema. |
+| `rhhi-none` | Perfil padrão | `hi/openjdk:21-runtime` | Runtime Hardened sem shell, com inventário reduzido de pacotes de sistema. |
 
 O builder é o mesmo `ubi9/openjdk-17` em todos os casos. O build multi-stage só copia o artefato Quarkus para o runtime. A dependência vulnerável da primeira imagem não é corrigida por trocar a imagem base: isso separa claramente a responsabilidade do desenvolvedor da escolha de runtime.
 
