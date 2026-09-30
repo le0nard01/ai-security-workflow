@@ -8,7 +8,7 @@ Esta demo une OpenShift Dev Spaces, Red Hat Dependency Analytics (RHDA), OpenShi
 - ACS 4.11.4: Central e Secured Cluster instalados; nome do cluster no ACS: `my-cluster`.
 - Pipelines 1.24: pipeline `images-security` criado no namespace da demo.
 - Dev Spaces 3.30.2: `https://devspaces.apps.cluster-fhchw.dyn.redhatworkshops.io`.
-- O devfile usa a imagem `admin-devspaces/images-security-devtools`, construída a partir de UBI com Maven, Git, gzip e OpenShift CLI. Recrie-a com `bash images-security/scripts/build-devspaces-tools.sh` antes de abrir um workspace novo neste cluster.
+- O devfile usa a imagem `admin-devspaces/images-security-devtools`, construída a partir de UBI com Maven, Git, gzip e OpenShift CLI. Recrie-a com `bash images-security/scripts/environment/build-devspaces-tools.sh` antes de abrir um workspace novo neste cluster.
 - RHDA: extensão `redhat.fabric8-analytics`, disponível no Open VSX e instalada neste workspace. O Dev Spaces foi apontado para `https://open-vsx.org`; se a instalação automática não ocorrer em outro workspace, instale a extensão pela aba Extensions.
 
 ## Como funciona
@@ -48,8 +48,8 @@ oc apply -f images-security/openshift/acs-policies.yaml
 oc apply -f images-security/openshift/devspaces.yaml
 # Depois que o operador Dev Spaces estiver Succeeded:
 oc apply -f images-security/openshift/checluster.yaml
-bash images-security/scripts/configure-acs-token.sh
-bash images-security/scripts/build-devspaces-tools.sh
+bash images-security/scripts/environment/configure-acs-token.sh
+bash images-security/scripts/environment/build-devspaces-tools.sh
 # Depois de criar o DevWorkspace, vincule sua ServiceAccount à Role de demonstração:
 oc apply -f images-security/openshift/devspaces-demo-access.yaml
 ```
@@ -61,16 +61,16 @@ O script do token usa a senha local de administração do ACS e cria um token co
 Depois de qualquer edição local ou no terminal do Dev Spaces, atualize o snapshot:
 
 ```bash
-bash images-security/scripts/sync-source.sh
+bash images-security/scripts/ci-cd/sync-source.sh
 ```
 
 Execute um script por vez, aguardando o PipelineRun terminar antes de iniciar o próximo. Isso evita quatro builds simultâneos no nó deste laboratório:
 
 ```bash
-bash images-security/scripts/run-community-unsafe.sh
-bash images-security/scripts/run-community-none.sh
-bash images-security/scripts/run-ubi-none.sh
-bash images-security/scripts/run-rhhi-none.sh
+bash images-security/scripts/ci-cd/run-community-unsafe.sh
+bash images-security/scripts/ci-cd/run-community-none.sh
+bash images-security/scripts/ci-cd/run-ubi-none.sh
+bash images-security/scripts/ci-cd/run-rhhi-none.sh
 ```
 
 Cada comando cria **somente um** PipelineRun; execute apenas a linha do cenário que deseja demonstrar. Acompanhe com `oc -n images-security get pipelineruns -w`. Para ver scan e gate: `oc -n images-security logs <taskrun-pod> -c step-scan` e `oc -n images-security logs <taskrun-pod> -c step-policy-gate`, ou abra o PipelineRun na console OpenShift.
@@ -120,7 +120,8 @@ Use os digests dos builds executados e registre novamente a data ao repetir a de
 - `containers/`: três Containerfiles com builder comum e runtimes distintos.
 - `devfile.yaml` e `.vscode/extensions.json`: ambiente Dev Spaces e RHDA.
 - `openshift/`: Pipeline, políticas ACS, Deployment/Service/Route RHHI e instalação do Dev Spaces.
-- `scripts/`: token de integração, sincronização do código e um script para cada PipelineRun.
+- `scripts/environment/`: preparação do ACS e da imagem de ferramentas do Dev Spaces.
+- `scripts/ci-cd/`: sincronização do código e um script para cada PipelineRun.
 
 ## Referências oficiais
 
