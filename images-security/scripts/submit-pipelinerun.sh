@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
-set -euo pipefail
 
-ROX_CLUSTER=${ROX_CLUSTER:-my-cluster}
-REGISTRY=image-registry.openshift-image-registry.svc:5000/images-security
-
-submit() {
+submit_pipeline_run() {
   local variant=$1 profile=$2
   local tag="${variant}-${profile}"
+  local registry=image-registry.openshift-image-registry.svc:5000/images-security
+  local rox_cluster=${ROX_CLUSTER:-my-cluster}
+
   oc -n images-security create -f - <<YAML
 apiVersion: tekton.dev/v1
 kind: PipelineRun
@@ -23,9 +22,9 @@ spec:
     - name: maven-profile
       value: ${profile}
     - name: image
-      value: ${REGISTRY}/security-demo:${tag}
+      value: ${registry}/security-demo:${tag}
     - name: rox-cluster
-      value: ${ROX_CLUSTER}
+      value: ${rox_cluster}
   workspaces:
     - name: source
       volumeClaimTemplate:
@@ -36,21 +35,3 @@ spec:
               storage: 2Gi
 YAML
 }
-
-case ${1:-all} in
-  all)
-    submit community unsafe
-    submit community none
-    submit ubi none
-    submit rhhi none
-    ;;
-  rhhi)
-    submit rhhi none
-    ;;
-  *)
-    echo "Uso: $0 [all|rhhi]" >&2
-    exit 2
-    ;;
-esac
-
-oc -n images-security get pipelineruns

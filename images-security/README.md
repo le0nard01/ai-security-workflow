@@ -58,15 +58,22 @@ O `RoleBinding` em `devspaces-demo-access.yaml` aponta para a ServiceAccount do 
 
 O script do token usa a senha local de administração do ACS e cria um token com papel **Continuous Integration**, armazenado apenas no Secret `images-security/rox-api-token`. Não grava o token no Git. Em ambientes sem o Secret `central-htpasswd`, crie um token Continuous Integration no portal ACS e salve-o com `oc -n images-security create secret generic rox-api-token --from-literal=token='<TOKEN>'`.
 
-Depois de qualquer edição local ou no terminal do Dev Spaces, atualize o snapshot e execute a matriz:
+Depois de qualquer edição local ou no terminal do Dev Spaces, atualize o snapshot:
 
 ```bash
 bash images-security/scripts/sync-source.sh
-bash images-security/scripts/run-demo.sh
-oc -n images-security get pipelineruns -w
 ```
 
-Para repetir somente o fluxo RHHI de build, scan, Image Check e CD, execute `bash images-security/scripts/run-demo.sh rhhi`. Para ver scan e gate: `oc -n images-security logs <taskrun-pod> -c step-scan` e `oc -n images-security logs <taskrun-pod> -c step-policy-gate`, ou abra cada PipelineRun na console OpenShift. O nome de cada etapa aparece na visualização do pipeline.
+Execute um script por vez, aguardando o PipelineRun terminar antes de iniciar o próximo. Isso evita quatro builds simultâneos no nó deste laboratório:
+
+```bash
+bash images-security/scripts/run-community-unsafe.sh
+bash images-security/scripts/run-community-none.sh
+bash images-security/scripts/run-ubi-none.sh
+bash images-security/scripts/run-rhhi-none.sh
+```
+
+Cada comando cria **somente um** PipelineRun; execute apenas a linha do cenário que deseja demonstrar. Acompanhe com `oc -n images-security get pipelineruns -w`. Para ver scan e gate: `oc -n images-security logs <taskrun-pod> -c step-scan` e `oc -n images-security logs <taskrun-pod> -c step-policy-gate`, ou abra o PipelineRun na console OpenShift.
 
 Somente a variante `rhhi-none` que passa pelo Image Check executa `deploy-rhhi`. O CD aplica `rhhi-deployment.yaml` com o **digest do Buildah**, aguarda o Deployment ficar disponível e consulta `/vulnerabilities` pelo Service. A Route HTTPS é `security-demo-rhhi`; obtenha o endereço no terminal do Dev Spaces:
 
@@ -113,7 +120,7 @@ Use os digests dos builds executados e registre novamente a data ao repetir a de
 - `containers/`: três Containerfiles com builder comum e runtimes distintos.
 - `devfile.yaml` e `.vscode/extensions.json`: ambiente Dev Spaces e RHDA.
 - `openshift/`: Pipeline, políticas ACS, Deployment/Service/Route RHHI e instalação do Dev Spaces.
-- `scripts/`: token de integração, sincronização do código e quatro PipelineRuns.
+- `scripts/`: token de integração, sincronização do código e um script para cada PipelineRun.
 
 ## Referências oficiais
 
