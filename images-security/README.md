@@ -9,7 +9,7 @@ Esta demo une OpenShift Dev Spaces, Red Hat Dependency Analytics (RHDA), OpenShi
 - Pipelines 1.24: pipeline `images-security` criado no namespace da demo.
 - Dev Spaces 3.30.2: `https://devspaces.apps.cluster-fhchw.dyn.redhatworkshops.io`.
 - O devfile usa a imagem `admin-devspaces/images-security-devtools`, construída a partir de UBI com Maven, Git, gzip e OpenShift CLI. Recrie-a com `bash images-security/scripts/build-devspaces-tools.sh` antes de abrir um workspace novo neste cluster.
-- RHDA: extensão `redhat.fabric8-analytics`, disponível no Open VSX. O Dev Spaces foi apontado para `https://open-vsx.org`; abra a pasta `images-security` no editor para aplicar as recomendações de `.vscode/extensions.json`. Se a instalação automática não ocorrer, instale a extensão pela aba Extensions.
+- RHDA: extensão `redhat.fabric8-analytics`, disponível no Open VSX e instalada neste workspace. O Dev Spaces foi apontado para `https://open-vsx.org`; se a instalação automática não ocorrer em outro workspace, instale a extensão pela aba Extensions.
 
 ## Como funciona
 
@@ -48,7 +48,11 @@ oc apply -f images-security/openshift/devspaces.yaml
 oc apply -f images-security/openshift/checluster.yaml
 bash images-security/scripts/configure-acs-token.sh
 bash images-security/scripts/build-devspaces-tools.sh
+# Depois de criar o DevWorkspace, vincule sua ServiceAccount à Role de demonstração:
+oc apply -f images-security/openshift/devspaces-demo-access.yaml
 ```
+
+O `RoleBinding` em `devspaces-demo-access.yaml` aponta para a ServiceAccount do workspace validado neste laboratório. Ao criar outro workspace, substitua o nome da ServiceAccount no manifesto pelo valor `<status.devworkspaceId>-sa` do novo DevWorkspace antes de aplicar. A Role permite publicar o ConfigMap, criar PipelineRuns e ler seus resultados apenas no namespace `images-security`.
 
 O script do token usa a senha local de administração do ACS e cria um token com papel **Continuous Integration**, armazenado apenas no Secret `images-security/rox-api-token`. Não grava o token no Git. Em ambientes sem o Secret `central-htpasswd`, crie um token Continuous Integration no portal ACS e salve-o com `oc -n images-security create secret generic rox-api-token --from-literal=token='<TOKEN>'`.
 
@@ -64,7 +68,7 @@ Para ver scan e gate: `oc -n images-security logs <taskrun-pod> -c step-scan` e 
 
 ## Roteiro de apresentação (15–20 minutos)
 
-1. **IDE e análise de dependências.** Abra `https://devspaces.apps.cluster-fhchw.dyn.redhatworkshops.io#https://github.com/le0nard01/ai-security-workflow.git?devfilePath=images-security/devfile.yaml` quando esta pasta estiver publicada no Git. No IDE, abra `images-security/app/pom.xml`, instale/abra RHDA e mostre as dependências intencionalmente vulneráveis no perfil `unsafe`. Execute os comandos `show-dependencies`, `build-unsafe` e `build-safe` do devfile. O relatório do RHDA analisa dependências de aplicação; não substitui o scan de imagem do ACS.
+1. **IDE e análise de dependências.** Abra `https://devspaces.apps.cluster-fhchw.dyn.redhatworkshops.io#https://github.com/le0nard01/ai-security-workflow.git?devfilePath=images-security/devfile.yaml` quando esta pasta estiver publicada no Git. No IDE, abra `images-security/rhda-unsafe/pom.xml` e clique em **Open Red Hat Dependency Analytics Report**: Log4j 2.14.1 e Commons Collections 3.2.1 aparecem com vulnerabilidades e remediações. Compare com `images-security/app/pom.xml`, cujo perfil padrão não inclui essas bibliotecas. Execute os comandos `show-dependencies`, `build-unsafe` e `build-safe` do devfile. O relatório do RHDA analisa dependências de aplicação; não substitui o scan de imagem do ACS.
 2. **Pipeline e Image Scan.** Execute os scripts de preparação acima. Mostre `fetch`, `build` e `image-scan` nos quatro PipelineRuns. O `roxctl image scan` mostra pacotes e CVEs encontrados pelo ACS; use os números reais do momento, pois feeds e tags mudam.
 3. **Image Check com bloqueio.** Abra a Task `image-check`. As políticas em `acs-policies.yaml` têm ciclo **BUILD** e ação **FAIL_BUILD**: `Log4Shell` procura CVE-2021-44228; `Gerenciador no runtime` procura `rpm` ou `dpkg`. Compare os PipelineRuns aprovados e reprovados. O resultado exato depende do inventário publicado pelo Scanner V4 e dos feeds atuais. Políticas padrão do ACS também podem bloquear um build se aparecerem novos CVEs corrigíveis.
 4. **Redução da superfície de ataque.** Compare `community-none`, `ubi-none` e `rhhi-none`: aplicação e dependências iguais, somente runtime diferente. No ACS, abra o inventário/SBOM de cada tag e anote **número de componentes do SO**, **CVEs do SO**, **tamanho** e presença de gerenciador de pacotes. A RHHI foi desenhada para remover utilitários de runtime desnecessários; uma quantidade menor de pacotes reduz pontos potencialmente exploráveis, mas não garante zero CVEs. Compare também os CVEs da aplicação separadamente dos do sistema operacional.
@@ -74,10 +78,10 @@ Para ver scan e gate: `oc -n images-security logs <taskrun-pod> -c step-scan` e 
 
 | Variante | Componentes no Image Scan | Vulnerabilidades no Image Scan | Tamanho da imagem | Gerenciador encontrado | Image Check |
 | --- | ---: | ---: | ---: | --- | --- |
-| community-unsafe | 34 | 81, incluindo 3 críticas | 131.299.291 bytes | `dpkg` | bloqueado: Log4Shell, gerenciador e política padrão |
-| community-none | 31 | 71 | 128.817.406 bytes | `dpkg` | bloqueado: gerenciador e política padrão |
-| ubi-none | 52 | 224 | 147.961.119 bytes | `rpm` | bloqueado: gerenciador e política padrão |
-| rhhi-none | 11 | 17 | 139.963.889 bytes | nenhum dos dois | aprovado, 0 violações |
+| community-unsafe | 34 | 81, incluindo 3 críticas | 131.299.288 bytes | `dpkg` | bloqueado: Log4Shell, gerenciador e política padrão |
+| community-none | 31 | 71 | 128.817.682 bytes | `dpkg` | bloqueado: gerenciador e política padrão |
+| ubi-none | 52 | 225 | 147.961.401 bytes | `rpm` | bloqueado: gerenciador e política padrão |
+| rhhi-none | 11 | 17 | 139.964.246 bytes | nenhum dos dois | aprovado, 0 violações |
 
 Os totais são os campos `TOTAL-COMPONENTS` e `TOTAL-VULNERABILITIES` emitidos pelo `roxctl image scan`; não representam todos os pacotes do SBOM nem separam automaticamente vulnerabilidades do SO e da aplicação. Para a comparação controlada com perfil Maven padrão, a RHHI apresentou **79% menos componentes reportados que UBI** (11 vs. 52) e **65% menos que a community** (11 vs. 31). As contagens de CVEs também foram menores nesta execução, mas mudam com as tags, feeds e critérios de classificação de cada distribuição. O tamanho RHHI ficou entre community e UBI, reforçando que tamanho, inventário e risco são medidas diferentes.
 
@@ -86,6 +90,7 @@ Use os digests dos builds executados e registre novamente a data ao repetir a de
 ## Arquivos
 
 - `app/`: aplicação Quarkus e perfil Maven vulnerável.
+- `rhda-unsafe/`: manifesto Maven com dependências vulneráveis explícitas para o relatório RHDA.
 - `containers/`: três Containerfiles com builder comum e runtimes distintos.
 - `devfile.yaml` e `.vscode/extensions.json`: ambiente Dev Spaces e RHDA.
 - `openshift/`: Pipeline, políticas ACS e instalação do Dev Spaces.
