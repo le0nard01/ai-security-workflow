@@ -37,9 +37,20 @@ spec:
 YAML
 }
 
-submit community unsafe
-submit community none
-submit ubi none
-submit rhhi none
+case ${1:-all} in
+  all)
+    submit community unsafe
+    submit community none
+    submit ubi none
+    submit rhhi none
+    ;;
+  rhhi)
+    submit rhhi none
+    ;;
+  *)
+    echo "Uso: $0 [all|rhhi]" >&2
+    exit 2
+    ;;
+esac
 
 oc -n images-security get pipelineruns

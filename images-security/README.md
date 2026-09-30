@@ -66,7 +66,7 @@ bash images-security/scripts/run-demo.sh
 oc -n images-security get pipelineruns -w
 ```
 
-Para ver scan e gate: `oc -n images-security logs <taskrun-pod> -c step-scan` e `oc -n images-security logs <taskrun-pod> -c step-policy-gate`, ou abra cada PipelineRun na console OpenShift. O nome de cada etapa aparece na visualização do pipeline. Para repetir somente uma variante, adapte a função `submit` em `run-demo.sh` ou execute a matriz novamente.
+Para repetir somente o fluxo RHHI de build, scan, Image Check e CD, execute `bash images-security/scripts/run-demo.sh rhhi`. Para ver scan e gate: `oc -n images-security logs <taskrun-pod> -c step-scan` e `oc -n images-security logs <taskrun-pod> -c step-policy-gate`, ou abra cada PipelineRun na console OpenShift. O nome de cada etapa aparece na visualização do pipeline.
 
 Somente a variante `rhhi-none` que passa pelo Image Check executa `deploy-rhhi`. O CD aplica `rhhi-deployment.yaml` com o **digest do Buildah**, aguarda o Deployment ficar disponível e consulta `/vulnerabilities` pelo Service. A Route HTTPS é `security-demo-rhhi`; obtenha o endereço no terminal do Dev Spaces:
 
@@ -75,13 +75,22 @@ oc -n images-security get route security-demo-rhhi -o jsonpath='https://{.spec.h
 oc -n images-security get deployment security-demo-rhhi
 ```
 
+Para demonstrar a ausência de shell na imagem final, execute no Dev Spaces:
+
+```bash
+oc -n images-security exec deployment/security-demo-rhhi -- /bin/bash -c true
+oc -n images-security exec deployment/security-demo-rhhi -- /bin/sh -c true
+```
+
+Ambos os comandos devem falhar com `executable file ... not found`. O build usa shell apenas no estágio UBI; o estágio final `hi/openjdk:21-runtime` copia somente a aplicação.
+
 ## Roteiro de apresentação (15–20 minutos)
 
 1. **IDE e análise de dependências.** Abra `https://devspaces.apps.cluster-fhchw.dyn.redhatworkshops.io#https://github.com/le0nard01/ai-security-workflow.git?devfilePath=images-security/devfile.yaml` quando esta pasta estiver publicada no Git. No IDE, abra `images-security/rhda-unsafe/pom.xml` e clique em **Open Red Hat Dependency Analytics Report**: Log4j 2.14.1 e Commons Collections 3.2.1 aparecem com vulnerabilidades e remediações. Compare com `images-security/app/pom.xml`, cujo perfil padrão não inclui essas bibliotecas. Execute os comandos `show-dependencies`, `build-unsafe` e `build-safe` do devfile. O relatório do RHDA analisa dependências de aplicação; não substitui o scan de imagem do ACS.
 2. **Pipeline e Image Scan.** Execute os scripts de preparação acima. Mostre `fetch`, `build` e `image-scan` nos quatro PipelineRuns. O `roxctl image scan` mostra pacotes e CVEs encontrados pelo ACS; use os números reais do momento, pois feeds e tags mudam.
 3. **Image Check com bloqueio.** Abra a Task `image-check`. As políticas em `acs-policies.yaml` têm ciclo **BUILD** e ação **FAIL_BUILD**: `Log4Shell` procura CVE-2021-44228; `Gerenciador no runtime` procura `rpm` ou `dpkg`. Compare os PipelineRuns aprovados e reprovados. O resultado exato depende do inventário publicado pelo Scanner V4 e dos feeds atuais. Políticas padrão do ACS também podem bloquear um build se aparecerem novos CVEs corrigíveis.
 4. **CD da RHHI.** Abra a Task `deploy-rhhi` no PipelineRun aprovado. Mostre o digest fixado no Deployment, o rollout concluído, o smoke test HTTP e a Route HTTPS. Os três PipelineRuns bloqueados não fazem deploy.
-5. **Redução da superfície de ataque.** Compare `community-none`, `ubi-none` e `rhhi-none`: aplicação e dependências iguais, somente runtime diferente. No ACS, abra o inventário/SBOM de cada tag e anote **número de componentes do SO**, **CVEs do SO**, **tamanho** e presença de gerenciador de pacotes. A RHHI foi desenhada para remover utilitários de runtime desnecessários; uma quantidade menor de pacotes reduz pontos potencialmente exploráveis, mas não garante zero CVEs. Compare também os CVEs da aplicação separadamente dos do sistema operacional.
+5. **Redução da superfície de ataque.** Compare `community-none`, `ubi-none` e `rhhi-none`: aplicação e dependências iguais, somente runtime diferente. No ACS, abra o inventário/SBOM de cada tag e anote **número de componentes do SO**, **CVEs do SO**, **tamanho** e presença de gerenciador de pacotes. Execute os testes de `bash` e `sh` acima no pod RHHI. A RHHI foi desenhada para remover utilitários de runtime desnecessários; uma quantidade menor de pacotes reduz pontos potencialmente exploráveis, mas não garante zero CVEs. Compare também os CVEs da aplicação separadamente dos do sistema operacional.
 6. **Remediação.** Mostre que a versão sem o perfil `unsafe` elimina a dependência Log4j antiga. Refaça o `sync-source.sh` e o pipeline após qualquer correção no `pom.xml`; o gate aplica as políticas novamente.
 
 ### Medição neste cluster (30/09/2026)
@@ -91,9 +100,9 @@ oc -n images-security get deployment security-demo-rhhi
 | community-unsafe | 34 | 81, incluindo 3 críticas | 131.299.288 bytes | `dpkg` | bloqueado: Log4Shell, gerenciador e política padrão |
 | community-none | 31 | 71 | 128.817.682 bytes | `dpkg` | bloqueado: gerenciador e política padrão |
 | ubi-none | 52 | 225 | 147.961.401 bytes | `rpm` | bloqueado: gerenciador e política padrão |
-| rhhi-none | 11 | 17 | 139.964.246 bytes | nenhum dos dois | aprovado, 0 violações |
+| rhhi-none | 6 | 4 | 107.721.950 bytes | nenhum dos dois | aprovado, 0 violações |
 
-Os totais são os campos `TOTAL-COMPONENTS` e `TOTAL-VULNERABILITIES` emitidos pelo `roxctl image scan`; não representam todos os pacotes do SBOM nem separam automaticamente vulnerabilidades do SO e da aplicação. Para a comparação controlada com perfil Maven padrão, a RHHI apresentou **79% menos componentes reportados que UBI** (11 vs. 52) e **65% menos que a community** (11 vs. 31). As contagens de CVEs também foram menores nesta execução, mas mudam com as tags, feeds e critérios de classificação de cada distribuição. O tamanho RHHI ficou entre community e UBI, reforçando que tamanho, inventário e risco são medidas diferentes.
+Os totais são os campos `TOTAL-COMPONENTS` e `TOTAL-VULNERABILITIES` emitidos pelo `roxctl image scan`; não representam todos os pacotes do SBOM nem separam automaticamente vulnerabilidades do SO e da aplicação. Para a comparação controlada com perfil Maven padrão, a RHHI apresentou **88% menos componentes reportados que UBI** (6 vs. 52) e **81% menos que a community** (6 vs. 31). As contagens de CVEs também foram menores nesta execução, mas mudam com as tags, feeds e critérios de classificação de cada distribuição. O tamanho da imagem RHHI também foi menor nesta execução; tamanho, inventário e risco são medidas diferentes.
 
 Use os digests dos builds executados e registre novamente a data ao repetir a demo. Uma biblioteca Java vulnerável inserida na aplicação continua no scan mesmo com uma base Hardened.
 
