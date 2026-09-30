@@ -1,0 +1,25 @@
+schemaVersion: 2.3.0
+metadata:
+  name: images-security
+components:
+  - name: tools
+    container:
+      image: quay.io/devfile/universal-developer-image:ubi9-latest
+      memoryLimit: 3Gi
+      mountSources: true
+commands:
+  - id: show-dependencies
+    exec:
+      component: tools
+      workingDir: ${PROJECT_SOURCE}/images-security/app
+      commandLine: mvn -B dependency:tree -Punsafe
+  - id: build-safe
+    exec:
+      component: tools
+      workingDir: ${PROJECT_SOURCE}/images-security/app
+      commandLine: mvn -B package -DskipTests
+  - id: build-unsafe
+    exec:
+      component: tools
+      workingDir: ${PROJECT_SOURCE}/images-security/app
+      commandLine: mvn -B -Punsafe package -DskipTests

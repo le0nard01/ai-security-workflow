@@ -1,0 +1,186 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: images-security
+---
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: security-demo
+  namespace: images-security
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: pipeline-image-builder
+  namespace: images-security
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:image-builder
+subjects:
+  - kind: ServiceAccount
+    name: pipeline
+    namespace: images-security
+---
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: images-security
+  namespace: images-security
+spec:
+  params:
+    - name: variant
+      type: string
+      description: community, ubi or rhhi
+    - name: maven-profile
+      type: string
+      default: none
+      description: none or unsafe
+    - name: image
+      type: string
+    - name: rox-endpoint
+      type: string
+      default: central.rhacs-operator.svc.cluster.local:443
+    - name: rox-cluster
+      type: string
+      default: my-cluster
+    - name: roxctl-image
+      type: string
+      default: registry.redhat.io/advanced-cluster-security/rhacs-roxctl-rhel9:4.11.4
+    - name: rox-insecure-tls
+      type: string
+      default: "true"
+  workspaces:
+    - name: source
+  tasks:
+    - name: fetch
+      taskSpec:
+        workspaces:
+          - name: source
+        volumes:
+          - name: archive
+            configMap:
+              name: images-security-source
+        steps:
+          - name: unpack
+            image: registry.access.redhat.com/ubi9/ubi:latest
+            volumeMounts:
+              - name: archive
+                mountPath: /archive
+            script: |
+              #!/usr/bin/env sh
+              set -eu
+              tar -xzf /archive/source.tgz -C "$(workspaces.source.path)"
+      workspaces:
+        - name: source
+          workspace: source
+    - name: build
+      runAfter: [fetch]
+      taskRef:
+        resolver: cluster
+        params:
+          - name: kind
+            value: task
+          - name: name
+            value: buildah
+          - name: namespace
+            value: openshift-pipelines
+      params:
+        - name: IMAGE
+          value: $(params.image)
+        - name: CONTEXT
+          value: images-security
+        - name: DOCKERFILE
+          value: images-security/containers/Containerfile.$(params.variant)
+        - name: BUILD_EXTRA_ARGS
+          value: --pull=true --build-arg MAVEN_PROFILE=$(params.maven-profile)
+        - name: TLS_VERIFY
+          value: "false"
+      workspaces:
+        - name: source
+          workspace: source
+    - name: image-scan
+      runAfter: [build]
+      params:
+        - name: image
+          value: $(params.image)
+        - name: endpoint
+          value: $(params.rox-endpoint)
+        - name: cluster
+          value: $(params.rox-cluster)
+        - name: roxctl-image
+          value: $(params.roxctl-image)
+        - name: insecure-tls
+          value: $(params.rox-insecure-tls)
+      taskSpec:
+        params:
+          - name: image
+            type: string
+          - name: endpoint
+            type: string
+          - name: cluster
+            type: string
+          - name: roxctl-image
+            type: string
+          - name: insecure-tls
+            type: string
+        steps:
+          - name: scan
+            image: $(params.roxctl-image)
+            env:
+              - name: ROX_API_TOKEN
+                valueFrom:
+                  secretKeyRef:
+                    name: rox-api-token
+                    key: token
+            script: |
+              #!/usr/bin/env sh
+              set -eu
+              tls=""
+              if [ "$(params.insecure-tls)" = "true" ]; then tls="--insecure-skip-tls-verify"; fi
+              roxctl image scan --endpoint "$(params.endpoint)" \
+                --cluster "$(params.cluster)" --namespace "$(context.taskRun.namespace)" \
+                --image "$(params.image)" --force -o table $tls
+    - name: image-check
+      runAfter: [image-scan]
+      params:
+        - name: image
+          value: $(params.image)
+        - name: endpoint
+          value: $(params.rox-endpoint)
+        - name: cluster
+          value: $(params.rox-cluster)
+        - name: roxctl-image
+          value: $(params.roxctl-image)
+        - name: insecure-tls
+          value: $(params.rox-insecure-tls)
+      taskSpec:
+        params:
+          - name: image
+            type: string
+          - name: endpoint
+            type: string
+          - name: cluster
+            type: string
+          - name: roxctl-image
+            type: string
+          - name: insecure-tls
+            type: string
+        steps:
+          - name: policy-gate
+            image: $(params.roxctl-image)
+            env:
+              - name: ROX_API_TOKEN
+                valueFrom:
+                  secretKeyRef:
+                    name: rox-api-token
+                    key: token
+            script: |
+              #!/usr/bin/env sh
+              set -eu
+              tls=""
+              if [ "$(params.insecure-tls)" = "true" ]; then tls="--insecure-skip-tls-verify"; fi
+              roxctl image check --endpoint "$(params.endpoint)" \
+                --cluster "$(params.cluster)" --namespace "$(context.taskRun.namespace)" \
+                --image "$(params.image)" --force -o table $tls

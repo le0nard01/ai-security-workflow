@@ -1,0 +1,46 @@
+apiVersion: config.stackrox.io/v1alpha1
+kind: SecurityPolicy
+metadata:
+  name: images-security-log4shell
+  namespace: rhacs-operator
+spec:
+  policyName: Demo images-security - Log4Shell
+  description: Bloqueia a imagem de demonstração quando CVE-2021-44228 está presente.
+  rationale: Uma dependência Java vulnerável continua vulnerável em qualquer imagem base.
+  remediation: Remover o perfil Maven unsafe e atualizar as dependências da aplicação.
+  categories: [Vulnerability Management]
+  lifecycleStages: [BUILD]
+  severity: CRITICAL_SEVERITY
+  enforcementActions: [FAIL_BUILD_ENFORCEMENT]
+  scope:
+    - namespace: images-security
+  policySections:
+    - sectionName: Vulnerabilidade conhecida
+      policyGroups:
+        - fieldName: CVE
+          values:
+            - value: CVE-2021-44228
+---
+apiVersion: config.stackrox.io/v1alpha1
+kind: SecurityPolicy
+metadata:
+  name: images-security-package-manager
+  namespace: rhacs-operator
+spec:
+  policyName: Demo images-security - Gerenciador no runtime
+  description: Identifica imagens de runtime que ainda contêm ferramentas de gerenciamento de pacotes.
+  rationale: Gerenciadores de pacotes ampliam as ferramentas disponíveis após uma invasão.
+  remediation: Usar uma imagem de runtime mínima como Red Hat Hardened Images.
+  categories: [Supply Chain Security]
+  lifecycleStages: [BUILD]
+  severity: MEDIUM_SEVERITY
+  enforcementActions: [FAIL_BUILD_ENFORCEMENT]
+  scope:
+    - namespace: images-security
+  policySections:
+    - sectionName: Gerenciadores no runtime
+      policyGroups:
+        - fieldName: Image Component
+          values:
+            - value: rpm=
+            - value: dpkg=

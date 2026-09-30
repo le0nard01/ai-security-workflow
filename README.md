@@ -1,5 +1,7 @@
 # AI Security Workflow
 
+Demo integrada de imagens e vulnerabilidades: [images-security/README.md](images-security/README.md).
+
 This repository contains:
 
 - `resources/apps/quarkus-vulnerable-app/`: a small Quarkus REST app with deliberately vulnerable dependencies for scanner demonstrations.
